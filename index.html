@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Siapa Baleo? — Faithline Night</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;500;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<!-- Firebase (compat SDK — simplest syntax, no build step) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
+<style>
+  :root{
+    --bg: #0d0b1e;
+    --panel: #17142f;
+    --panel-2: #1f1b3d;
+    --gold: #f5b942;
+    --gold-dim: #b8863a;
+    --coral: #e8543e;
+    --text: #f4efe6;
+    --text-dim: #9c97b8;
+    --line: rgba(245,185,66,0.14);
+    --radius: 18px;
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+
+  html,body{
+    margin:0; padding:0; height:100%;
+    background: radial-gradient(ellipse 120% 80% at 50% -10%, #221c46 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family:'Manrope', sans-serif;
+    overflow-x:hidden;
+  }
+
+  #app{
+    min-height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    padding: 24px 18px 40px;
+  }
+
+  .screen{
+    width:100%; max-width: 460px;
+    display:none;
+    animation: rise .5s ease both;
+  }
+  .screen.active{ display:block; }
+
+  @keyframes rise{
+    from{ opacity:0; transform: translateY(14px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+
+  .eyebrow{
+    font-family:'Space Mono', monospace;
+    font-size:12px; letter-spacing:0.22em; text-transform:uppercase;
+    color: var(--gold-dim);
+    margin-bottom:8px; text-align:center;
+  }
+
+  h1.title{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size: clamp(38px, 11vw, 56px);
+    text-align:center;
+    margin: 0 0 6px;
+    line-height:0.98;
+    background: linear-gradient(180deg, #fff, var(--gold) 120%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+
+  .subtitle{
+    text-align:center;
+    color: var(--text-dim);
+    font-size:15px;
+    line-height:1.55;
+    margin: 0 auto 36px;
+    max-width: 340px;
+  }
+
+  .lantern-wrap{
+    display:flex; justify-content:center; margin-bottom: 18px;
+  }
+  .lantern{
+    width:64px; height:64px; border-radius:50%;
+    background: radial-gradient(circle, var(--gold) 0%, rgba(245,185,66,0.15) 60%, transparent 72%);
+    animation: breathe 3.2s ease-in-out infinite;
+    position:relative;
+  }
+  .lantern::after{
+    content:''; position:absolute; inset:22px;
+    background: var(--gold); border-radius:50%;
+    box-shadow: 0 0 30px 6px rgba(245,185,66,0.7);
+  }
+  @keyframes breathe{
+    0%,100%{ transform:scale(1); opacity:0.85;}
+    50%{ transform:scale(1.12); opacity:1;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .lantern{ animation:none; }
+  }
+
+  .btn{
+    display:block; width:100%;
+    font-family:'Manrope', sans-serif;
+    font-weight:800; font-size:15px; letter-spacing:0.02em;
+    padding:17px 20px; margin-bottom:12px;
+    border-radius: 999px; border: none; cursor:pointer;
+    text-align:center;
+    transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+  }
+  .btn:active{ transform: scale(0.97); }
+  .btn:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
+
+  .btn-primary{
+    background: linear-gradient(180deg, #ffd27a, var(--gold));
+    color:#241a03;
+    box-shadow: 0 8px 24px rgba(245,185,66,0.28);
+  }
+  .btn-secondary{
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+  }
+  .btn-danger{
+    background: linear-gradient(180deg, #ff7a63, var(--coral));
+    color:#2a0a05;
+    box-shadow: 0 8px 24px rgba(232,84,62,0.28);
+  }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; box-shadow:none; }
+
+  .field{ margin-bottom:16px; }
+  .field label{
+    display:block; font-size:12px; letter-spacing:0.1em; text-transform:uppercase;
+    color: var(--text-dim); margin-bottom:8px;
+  }
+  .field input{
+    width:100%; padding:15px 16px;
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius: 12px;
+    color: var(--text);
+    font-family:'Space Mono', monospace;
+    font-size:17px;
+    text-transform: uppercase;
+  }
+  .field input::placeholder{ color:#524d70; text-transform:none; font-family:'Manrope',sans-serif;}
+  .field input:focus{ outline:none; border-color: var(--gold); }
+
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 26px 22px;
+  }
+
+  .room-code-display{
+    text-align:center; margin: 4px 0 26px;
+  }
+  .room-code-display .label{
+    font-size:12px; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px;
+  }
+  .room-code-display .code{
+    font-family:'Space Mono', monospace;
+    font-size:44px; font-weight:700; letter-spacing:0.1em;
+    color: var(--gold);
+  }
+
+  .player-list{ list-style:none; margin:0 0 22px; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .player-list li{
+    display:flex; align-items:center; gap:10px;
+    background: var(--panel-2);
+    border-radius:12px; padding:12px 14px;
+    font-weight:600; font-size:15px;
+  }
+  .dot{ width:9px; height:9px; border-radius:50%; background: var(--gold); flex-shrink:0;
+    box-shadow: 0 0 8px 1px rgba(245,185,66,0.6);
+  }
+  .empty-hint{
+    text-align:center; color:var(--text-dim); font-size:14px; padding: 18px 0;
+  }
+
+  .status-line{
+    text-align:center; color:var(--text-dim); font-size:14px; margin-top:14px;
+  }
+
+  .role-card{
+    text-align:center;
+  }
+  .role-card .kicker{
+    font-family:'Space Mono', monospace;
+    font-size:12px; letter-spacing:0.2em; text-transform:uppercase;
+    color: var(--gold-dim); margin-bottom:18px;
+  }
+  .role-card .task{
+    font-family:'Fraunces', serif;
+    font-size: clamp(22px, 6.5vw, 28px);
+    font-weight:600; line-height:1.35;
+    margin: 0 0 8px;
+  }
+  .role-card.pambaleo .task{ color: var(--coral); }
+  .role-card .hint{
+    color: var(--text-dim); font-size:14px; margin-top:14px; line-height:1.5;
+  }
+
+  .timer-ring{
+    width:120px; height:120px; margin: 6px auto 22px; position:relative;
+  }
+  .timer-ring svg{ transform: rotate(-90deg); width:100%; height:100%; }
+  .timer-ring circle{
+    fill:none; stroke-width:6;
+  }
+  .timer-ring .bg{ stroke: rgba(245,185,66,0.12); }
+  .timer-ring .fg{
+    stroke: var(--gold);
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear;
+  }
+  .timer-ring .num{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:'Space Mono', monospace; font-size:30px; font-weight:700;
+  }
+
+  .reveal-wrap{ text-align:center; }
+  .reveal-wrap .kicker{
+    font-family:'Space Mono', monospace; font-size:12px; letter-spacing:0.2em; text-transform:uppercase;
+    color: var(--text-dim); margin-bottom:10px;
+  }
+  .reveal-wrap .name{
+    font-family:'Fraunces', serif; font-weight:700;
+    font-size: clamp(34px, 10vw, 48px);
+    color: var(--coral);
+    margin: 6px 0 4px;
+  }
+  .reveal-wrap .challenge-was{
+    color: var(--text-dim); font-size:14px; margin-top:22px; line-height:1.6;
+    padding-top:18px; border-top:1px solid var(--line);
+  }
+
+  .link-btn{
+    background:none; border:none; color: var(--text-dim);
+    font-size:13px; text-decoration:underline; cursor:pointer;
+    display:block; margin: 14px auto 0; text-align:center;
+  }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background: var(--coral); color:#2a0a05; font-weight:700; font-size:14px;
+    padding:12px 20px; border-radius:999px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    opacity:0; pointer-events:none; transition: opacity .25s ease;
+    z-index:100; max-width:90vw; text-align:center;
+  }
+  .toast.show{ opacity:1; }
+
+  .footer-mark{
+    text-align:center; color:#4a4568; font-size:11px; letter-spacing:0.1em;
+    text-transform:uppercase; margin-top:28px;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- LANDING -->
+  <section class="screen active" data-screen="landing">
+    <div class="lantern-wrap"><div class="lantern"></div></div>
+    <div class="eyebrow">Faithline Night</div>
+    <h1 class="title">Siapa Baleo?</h1>
+    <p class="subtitle">Satu orang tidak tahu apa yang kalian tahu.<br>Cari tahu siapa yang cuma berpura-pura.</p>
+    <button class="btn btn-primary" id="btn-create">Buat Ruangan</button>
+    <button class="btn btn-secondary" id="btn-join">Masuk Ruangan</button>
+  </section>
+
+  <!-- JOIN FORM -->
+  <section class="screen" data-screen="join-form">
+    <div class="eyebrow">Masuk Ruangan</div>
+    <h1 class="title" style="font-size:32px;">Gabung Main</h1>
+    <div class="card">
+      <div class="field">
+        <label for="input-name">Nama</label>
+        <input id="input-name" type="text" placeholder="Nama kamu" maxlength="20" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="input-code">Kode Ruangan</label>
+        <input id="input-code" type="text" placeholder="ABC123" maxlength="6" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" id="btn-join-submit">Gabung</button>
+    </div>
+    <button class="link-btn" data-back="landing">← Kembali</button>
+  </section>
+
+  <!-- PLAYER WAITING -->
+  <section class="screen" data-screen="player-waiting">
+    <div class="lantern-wrap"><div class="lantern"></div></div>
+    <h1 class="title" style="font-size:30px;">Berhasil masuk!</h1>
+    <p class="subtitle">Menunggu host memulai permainan…</p>
+    <div class="status-line" id="player-wait-count"></div>
+  </section>
+
+  <!-- HOST LOBBY -->
+  <section class="screen" data-screen="host-lobby">
+    <div class="eyebrow">Siapa Baleo?</div>
+    <div class="room-code-display">
+      <div class="label">Kode Ruangan</div>
+      <div class="code" id="host-room-code">------</div>
+    </div>
+    <div class="card">
+      <ul class="player-list" id="host-player-list"></ul>
+      <div class="empty-hint" id="host-empty-hint">Menunggu pemain…</div>
+      <button class="btn btn-primary" id="btn-start-game" disabled>Mulai Permainan</button>
+      <div class="status-line" id="host-min-hint">Minimal 3 pemain</div>
+    </div>
+  </section>
+
+  <!-- HOST DURING GAME -->
+  <section class="screen" data-screen="host-playing">
+    <div class="eyebrow">Siapa Baleo?</div>
+    <h1 class="title" style="font-size:28px;">Permainan sedang berlangsung…</h1>
+    <div class="timer-ring" id="host-timer-ring">
+      <svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="54"/><circle class="fg" cx="60" cy="60" r="54"/></svg>
+      <div class="num" id="host-timer-num">30</div>
+    </div>
+    <p class="subtitle" style="margin-bottom:22px;">Semua pemain sudah menerima tugas.</p>
+    <button class="btn btn-danger" id="btn-reveal" disabled>Buka Rahasia</button>
+  </section>
+
+  <!-- PLAYER DURING GAME (normal) -->
+  <section class="screen" data-screen="player-playing">
+    <div class="card role-card" id="player-role-card">
+      <div class="kicker">Rahasia Kamu</div>
+      <p class="task" id="player-task-text"></p>
+      <p class="hint" id="player-role-hint"></p>
+    </div>
+    <div class="timer-ring" style="margin-top:22px;" id="player-timer-ring">
+      <svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="54"/><circle class="fg" cx="60" cy="60" r="54"/></svg>
+      <div class="num" id="player-timer-num">30</div>
+    </div>
+  </section>
+
+  <!-- REVEAL -->
+  <section class="screen" data-screen="reveal">
+    <div class="card reveal-wrap">
+      <div class="kicker">Hasil Permainan</div>
+      <p style="margin:0; color:var(--text-dim); font-size:15px;">Pambaleo adalah…</p>
+      <p class="name" id="reveal-name">—</p>
+      <div class="challenge-was" id="reveal-challenge"></div>
+    </div>
+    <button class="btn btn-secondary" id="btn-play-again" style="margin-top:20px;">Main Lagi</button>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   FIREBASE CONFIG — paste your project's config here.
+   Get this from: Firebase Console → Project Settings → General
+   → "Your apps" → SDK setup and configuration
+   ========================================================= */
+const FIREBASE_CONFIG = {
+  apiKey: "PASTE_YOUR_API_KEY",
+  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://PASTE_YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "PASTE_YOUR_PROJECT",
+  storageBucket: "PASTE_YOUR_PROJECT.appspot.com",
+  messagingSenderId: "PASTE_YOUR_SENDER_ID",
+  appId: "PASTE_YOUR_APP_ID"
+};
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+
+/* ---------------------------------------------------------
+   Challenge pool — light, safe icebreaker prompts (Bahasa Indonesia)
+   --------------------------------------------------------- */
+const CHALLENGES = [
+  "Angkat tangan kalau kamu pernah pura-pura suka sesuatu karena temanmu.",
+  "Tepuk tangan 2 kali kalau kamu pernah nyontek waktu sekolah.",
+  "Berdiri sebentar kalau kamu pernah kirim chat ke orang yang salah.",
+  "Tunjuk ke atas kalau kamu takut gelap.",
+  "Angkat satu kaki kalau kamu pernah nangis nonton film.",
+  "Tutup mata 3 detik kalau kamu pernah ketiduran pas acara penting.",
+  "Angkat tangan kalau kamu pernah diam-diam intip medsos mantan/gebetan.",
+  "Goyangkan kepala kalau kamu pernah bohong soal keluar malam.",
+  "Tunjuk teman di sebelahmu kalau kamu pernah pinjam barang & lupa balikin.",
+  "Angkat tangan kalau kamu pernah salah panggil nama orang.",
+  "Tepuk pundak sendiri kalau kamu pernah nyanyi kenceng sendirian di kamar mandi.",
+  "Angkat tangan kalau kamu pernah pura-pura sibuk biar gak diajak ngobrol.",
+  "Tunjuk ke langit-langit kalau kamu pernah kepikiran hal random tengah malam.",
+  "Berdiri kalau kamu pernah telat karena kesiangan lebih dari sekali minggu ini.",
+  "Angkat tangan kalau kamu pernah lupa nama orang tepat setelah kenalan.",
+  "Tepuk tangan sekali kalau kamu diam-diam suka drama/gosip.",
+  "Angkat tangan kalau kamu pernah nangis karena baper sendirian.",
+  "Tunjuk ke bawah kalau kamu pernah jatuh di depan banyak orang."
+];
+
+/* ---------------------------------------------------------
+   State
+   --------------------------------------------------------- */
+let state = {
+  role: null,        // 'host' | 'player'
+  roomCode: null,
+  hostId: null,
+  playerId: null,
+  playerName: null,
+  roomRef: null,
+  timerInterval: null,
+};
+
+const PERSIST_KEY = 'siapabaleo_session';
+
+/* ---------------------------------------------------------
+   Screen routing
+   --------------------------------------------------------- */
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>{
+    s.classList.toggle('active', s.dataset.screen === name);
+  });
+  window.scrollTo(0,0);
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._h);
+  toast._h = setTimeout(()=> t.classList.remove('show'), 2600);
+}
+
+function genRoomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for(let i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
+  return code;
+}
+function genId(){
+  return Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
+}
+
+/* ---------------------------------------------------------
+   HOST: create room
+   --------------------------------------------------------- */
+document.getElementById('btn-create').addEventListener('click', async ()=>{
+  const code = genRoomCode();
+  const hostId = genId();
+  const roomRef = db.ref('rooms/' + code);
+
+  await roomRef.set({
+    roomCode: code,
+    hostId: hostId,
+    status: 'lobby',
+    createdAt: firebase.database.ServerValue.TIMESTAMP,
+    players: {},
+    game: null
+  });
+
+  // clean up empty rooms if host disappears (best-effort)
+  roomRef.onDisconnect(); // room persists; host can reconnect via localStorage
+
+  state.role = 'host';
+  state.roomCode = code;
+  state.hostId = hostId;
+  state.roomRef = roomRef;
+
+  localStorage.setItem(PERSIST_KEY, JSON.stringify({role:'host', roomCode:code, hostId}));
+
+  document.getElementById('host-room-code').textContent = code;
+  showScreen('host-lobby');
+  listenAsHost();
+});
+
+function listenAsHost(){
+  state.roomRef.on('value', snap=>{
+    const room = snap.val();
+    if(!room) return;
+
+    if(room.status === 'lobby'){
+      renderHostLobby(room);
+    } else if(room.status === 'playing'){
+      showScreen('host-playing');
+      runHostTimer(room.game);
+    } else if(room.status === 'reveal'){
+      renderReveal(room);
+    }
+  });
+}
+
+function renderHostLobby(room){
+  showScreen('host-lobby');
+  const players = room.players ? Object.values(room.players) : [];
+  const list = document.getElementById('host-player-list');
+  const emptyHint = document.getElementById('host-empty-hint');
+  const startBtn = document.getElementById('btn-start-game');
+  const minHint = document.getElementById('host-min-hint');
+
+  list.innerHTML = '';
+  players.forEach(p=>{
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="dot"></span><span>${escapeHtml(p.name)}</span>`;
+    list.appendChild(li);
+  });
+
+  emptyHint.style.display = players.length ? 'none' : 'block';
+  const enough = players.length >= 3;
+  startBtn.disabled = !enough;
+  minHint.textContent = enough ? `${players.length} pemain siap` : `Minimal 3 pemain (${players.length}/3)`;
+}
+
+document.getElementById('btn-start-game').addEventListener('click', async ()=>{
+  const snap = await state.roomRef.get();
+  const room = snap.val();
+  const playerIds = room.players ? Object.keys(room.players) : [];
+  if(playerIds.length < 3) return;
+
+  const pambaleoId = playerIds[Math.floor(Math.random()*playerIds.length)];
+  const challenge = CHALLENGES[Math.floor(Math.random()*CHALLENGES.length)];
+  const duration = 30; // seconds
+
+  await state.roomRef.update({
+    status: 'playing',
+    game: {
+      challenge,
+      pambaleoId,
+      startTime: firebase.database.ServerValue.TIMESTAMP,
+      duration
+    }
+  });
+});
+
+function runHostTimer(game){
+  if(!game || !game.startTime) return;
+  clearInterval(state.timerInterval);
+  const revealBtn = document.getElementById('btn-reveal');
+  revealBtn.disabled = true;
+  revealBtn.onclick = doReveal;
+
+  const ring = document.getElementById('host-timer-ring').querySelector('.fg');
+  const num = document.getElementById('host-timer-num');
+  const circumference = 2 * Math.PI * 54;
+  ring.style.strokeDasharray = circumference;
+
+  state.timerInterval = setInterval(()=>{
+    const elapsed = (Date.now() - game.startTime) / 1000;
+    const remaining = Math.max(0, Math.ceil(game.duration - elapsed));
+    num.textContent = remaining;
+    const frac = Math.max(0, (game.duration - elapsed) / game.duration);
+    ring.style.strokeDashoffset = circumference * (1 - frac);
+    if(remaining <= 0){
+      clearInterval(state.timerInterval);
+      revealBtn.disabled = false;
+    }
+  }, 250);
+}
+
+async function doReveal(){
+  await state.roomRef.update({ status: 'reveal' });
+}
+
+document.getElementById('btn-reveal').addEventListener('click', doReveal);
+
+/* ---------------------------------------------------------
+   PLAYER: join room
+   --------------------------------------------------------- */
+document.getElementById('btn-join').addEventListener('click', ()=> showScreen('join-form'));
+
+document.getElementById('btn-join-submit').addEventListener('click', async ()=>{
+  const name = document.getElementById('input-name').value.trim();
+  const code = document.getElementById('input-code').value.trim().toUpperCase();
+
+  if(!name){ toast('Isi nama kamu dulu'); return; }
+  if(!code){ toast('Isi kode ruangan'); return; }
+
+  const roomRef = db.ref('rooms/' + code);
+  const snap = await roomRef.get();
+  if(!snap.exists()){ toast('Ruangan tidak ditemukan'); return; }
+  const room = snap.val();
+  if(room.status !== 'lobby'){ toast('Permainan sudah dimulai'); return; }
+
+  const playerId = genId();
+  await roomRef.child('players/' + playerId).set({ id: playerId, name });
+  roomRef.child('players/' + playerId).onDisconnect().remove();
+
+  state.role = 'player';
+  state.roomCode = code;
+  state.playerId = playerId;
+  state.playerName = name;
+  state.roomRef = roomRef;
+
+  localStorage.setItem(PERSIST_KEY, JSON.stringify({role:'player', roomCode:code, playerId, playerName:name}));
+
+  showScreen('player-waiting');
+  listenAsPlayer();
+});
+
+function listenAsPlayer(){
+  state.roomRef.on('value', snap=>{
+    const room = snap.val();
+    if(!room){ toast('Ruangan dihapus'); return; }
+
+    if(room.status === 'lobby'){
+      const count = room.players ? Object.keys(room.players).length : 0;
+      document.getElementById('player-wait-count').textContent = `${count} pemain di ruangan`;
+      showScreen('player-waiting');
+    } else if(room.status === 'playing'){
+      renderPlayerGame(room.game);
+    } else if(room.status === 'reveal'){
+      renderReveal(room);
+    }
+  });
+}
+
+function renderPlayerGame(game){
+  showScreen('player-playing');
+  const card = document.getElementById('player-role-card');
+  const taskEl = document.getElementById('player-task-text');
+  const hintEl = document.getElementById('player-role-hint');
+  const isPambaleo = game.pambaleoId === state.playerId;
+
+  card.classList.toggle('pambaleo', isPambaleo);
+  if(isPambaleo){
+    taskEl.textContent = 'Kamu Pambaleo.';
+    hintEl.textContent = 'Jangan ketahuan. Perhatikan gerakan pemain lain.';
+  } else {
+    taskEl.textContent = game.challenge;
+    hintEl.textContent = '';
+  }
+
+  clearInterval(state.timerInterval);
+  const ring = document.getElementById('player-timer-ring').querySelector('.fg');
+  const num = document.getElementById('player-timer-num');
+  const circumference = 2 * Math.PI * 54;
+  ring.style.strokeDasharray = circumference;
+
+  state.timerInterval = setInterval(()=>{
+    const elapsed = (Date.now() - game.startTime) / 1000;
+    const remaining = Math.max(0, Math.ceil(game.duration - elapsed));
+    num.textContent = remaining;
+    const frac = Math.max(0, (game.duration - elapsed) / game.duration);
+    ring.style.strokeDashoffset = circumference * (1 - frac);
+    if(remaining <= 0) clearInterval(state.timerInterval);
+  }, 250);
+}
+
+/* ---------------------------------------------------------
+   REVEAL (shared by host + players)
+   --------------------------------------------------------- */
+function renderReveal(room){
+  clearInterval(state.timerInterval);
+  showScreen('reveal');
+  const players = room.players || {};
+  const pambaleo = players[room.game.pambaleoId];
+  document.getElementById('reveal-name').textContent = pambaleo ? pambaleo.name.toUpperCase() : '???';
+  document.getElementById('reveal-challenge').textContent = 'Tugas asli: “' + room.game.challenge + '”';
+}
+
+document.getElementById('btn-play-again').addEventListener('click', async ()=>{
+  if(state.role === 'host'){
+    await state.roomRef.update({ status: 'lobby', game: null });
+  } else {
+    // players just wait for host to restart
+    showScreen('player-waiting');
+  }
+});
+
+/* ---------------------------------------------------------
+   Back buttons / misc
+   --------------------------------------------------------- */
+document.querySelectorAll('[data-back]').forEach(btn=>{
+  btn.addEventListener('click', ()=> showScreen(btn.dataset.back));
+});
+
+function escapeHtml(str){
+  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ---------------------------------------------------------
+   Resume session on page load (survives refresh)
+   --------------------------------------------------------- */
+(function resumeSession(){
+  const raw = localStorage.getItem(PERSIST_KEY);
+  if(!raw) return;
+  try{
+    const saved = JSON.parse(raw);
+    if(saved.role === 'host'){
+      state.role='host'; state.roomCode=saved.roomCode; state.hostId=saved.hostId;
+      state.roomRef = db.ref('rooms/' + saved.roomCode);
+      document.getElementById('host-room-code').textContent = saved.roomCode;
+      state.roomRef.get().then(snap=>{
+        if(snap.exists()){ listenAsHost(); } else { localStorage.removeItem(PERSIST_KEY); }
+      });
+    } else if(saved.role === 'player'){
+      state.role='player'; state.roomCode=saved.roomCode; state.playerId=saved.playerId; state.playerName=saved.playerName;
+      state.roomRef = db.ref('rooms/' + saved.roomCode);
+      state.roomRef.get().then(snap=>{
+        if(snap.exists()){ listenAsPlayer(); } else { localStorage.removeItem(PERSIST_KEY); }
+      });
+    }
+  } catch(e){ localStorage.removeItem(PERSIST_KEY); }
+})();
+</script>
+
+</body>
+</html>
